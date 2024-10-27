@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule
+  xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+  xmlns:http="http://www.mulesoft.org/schema/mule/http"
+  xmlns:spring="http://www.mulesoft.org/schema/mule/spring"
+  xmlns="http://www.mulesoft.org/schema/mule/core"
+  xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.springframework.org/schema/beans
+    http://www.springframework.org/schema/beans/spring-beans-current.xsd
+    http://www.mulesoft.org/schema/mule/core
+    http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+    http://www.mulesoft.org/schema/mule/spring
+    http://www.mulesoft.org/schema/mule/spring/current/mule-spring.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd">
+
+  <spring:config name="springConfig1" files="beans.xml" />
+
+	<spring:security-manager doc:name="Spring Security manager" doc:id="fcce26ab-0cbe-4322-a61d-261833c6247b" >
+		<spring:delegate-security-provider name="memory-provider" delegate-ref="authenticationManager" />
+	</spring:security-manager>
+	
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="42414002-2605-4e65-9e5c-17def7758b79">
+		<http:listener-connection host="localhost" port="8082" protocol="HTTPS">
+			<tls:context >
+				<tls:trust-store insecure="true" path="${truststorepath}" password="changeit" type="jks"/>
+				<tls:key-store type="jks" path="${keystorepath}" alias="mykey" keyPassword="changeit" password="changeit"/>
+			</tls:context>
+		</http:listener-connection>
+	</http:listener-config>
+	
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="f407cec3-e3a1-4056-88fb-4e8e408d494e" >
+		<http:request-connection protocol="HTTPS" host="localhost" port="8083" >
+			<tls:context >
+				<tls:trust-store path="${truststorepath}" password="changeit" type="jks" insecure="true"/>
+				<tls:key-store type="jks" path="${keystorepath}" alias="mykey" keyPassword="changeit" password="changeit"/>
+			</tls:context>
+			<http:authentication >
+				<http:basic-authentication username="admin" password="admin" />
+			</http:authentication>
+		</http:request-connection>
+	</http:request-config>
+	
+	<configuration-properties doc:name="Configuration properties" doc:id="8004cbc7-1ac4-4bf1-9703-28dbc790ede2" file="config.properties" />
+	<http:listener-config name="Https_OneWay" doc:name="HTTP Listener config" doc:id="0eeb7a46-d09b-4aa1-9d5f-387a6a2b4214" >
+		<http:listener-connection host="0.0.0.0" port="8083" protocol="HTTPS">
+			<tls:context >
+				<tls:key-store type="jks" path="${keystorepath}" alias="mykey" keyPassword="changeit" password="changeit" />
+			</tls:context>
+		</http:listener-connection>
+	</http:listener-config>
+	<flow name="https-demo-flow-basic-auth" doc:id="5c0897ee-53c5-4ab1-86e0-0fe970312950" >
+		<http:listener doc:name="Listener" doc:id="d3008b69-c8f6-4b75-a09a-290492db5541" config-ref="HTTP_Listener_config" path="/testConnection">
+			<http:error-response >
+				<http:body ><![CDATA[#[output text/plain --- vars.error.description]]]></http:body>
+			</http:error-response>
+		</http:listener>
+		<http:basic-security-filter doc:name="Basic security filter" doc:id="13268be6-5da8-4cf5-a13d-51557172e1b1" realm="mule-realm"/>
+		<spring:authorization-filter doc:name="Authorization filter" doc:id="c9f414b0-3a25-4703-a49f-9533a22c03fc" requiredAuthorities="ROLE_ADMIN"/>
+		<set-payload value="#['success message']" doc:name="Set Payload" doc:id="aaab7647-902f-419d-b9ae-40b23c38aa05" />
+	</flow>
+	
+	
+	<flow name="https-Client-Caller-flow-basic-auth" doc:id="5764cc2c-bd7a-495e-92ca-473b363639ed" >
+		<http:listener doc:name="Listener" doc:id="d1916b3c-6594-4c19-98a7-4ac788f23449" config-ref="HTTP_Listener_config" path="/clientCaller"/>
+		<http:basic-security-filter doc:name="Basic security filter" doc:id="3ab62abf-c974-4e46-88b8-4c5c3542556d" realm="mule-realm"/>
+		<spring:authorization-filter doc:name="Authorization filter" doc:id="778ee6f3-dddc-4e3a-9cc6-a3655e0f7f83" requiredAuthorities="ROLE_ADMIN"/>
+		<http:request method="GET" doc:name="Request" doc:id="d2f96cc4-c95a-4146-ae5c-653b023544b2" config-ref="HTTP_Request_configuration" path="/base"/>
+	</flow>
+	
+		<flow name="https-Server-flow-basic-auth" doc:id="6c2ce596-a35a-4326-8ea2-8d401fdd0175" >
+		<http:listener doc:name="Listener" doc:id="0b6515c8-50f7-49e8-bcfe-616581c21518" config-ref="Https_OneWay" path="/base"/>
+		<http:basic-security-filter doc:name="Basic security filter" doc:id="f74a17b1-926d-44a3-a1ce-82f957510019" realm="mule-realm"/>
+		<spring:authorization-filter doc:name="Authorization filter" doc:id="4d1e9d5a-9d33-4d12-8c2a-4d057487fc0e" requiredAuthorities="ROLE_ADMIN"/>
+		<set-payload value="#['Server Message|| Example of Two way + one way SSL']" doc:name="Set Payload" doc:id="1424e9e0-866e-4b66-a9cd-988dcdaade3c" />
+	</flow>
+	
+	
+</mule>
